@@ -1342,7 +1342,28 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-// Start Server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Smart WaterWorks server running at http://0.0.0.0:${PORT}`);
-});
+// Start Server with automatic port fallback and error resilience
+function startServer(port, retries = 5) {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Smart WaterWorks server running at http://0.0.0.0:${port}`);
+    console.log(`   เปิดใช้งานได้ที่: http://localhost:${port}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && retries > 0) {
+      console.log(`ℹ️ พอร์ต ${port} กำลังถูกใช้งานอยู่ กำลังเปิดใช้งานบนพอร์ต ${Number(port) + 1}...`);
+      startServer(Number(port) + 1, retries - 1);
+    } else {
+      console.error('❌ Server startup error:', err.message);
+    }
+  });
+
+  return server;
+}
+
+if (require.main === module) {
+  startServer(PORT);
+}
+
+module.exports = { app, startServer };
+
